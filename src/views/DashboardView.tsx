@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/Card';
-import { MOckMetrics } from '@/src/data/mock';
+import { MockMetrics } from '@/src/data/mock';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Users, MailOpen, Calendar, Clock, Activity, Fingerprint } from 'lucide-react';
 
@@ -18,7 +18,7 @@ export function DashboardView({ businessId }: { businessId: string }) {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 shrink-0">
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <p className="text-[10px] text-slate-500 uppercase font-bold">Tiempo Ahorrado</p>
-          <p className="text-2xl font-bold">{MOckMetrics.timeSaved}</p>
+          <p className="text-2xl font-bold">{MockMetrics.timeSaved}</p>
           <div className="w-full bg-slate-100 h-1 mt-2 rounded-full">
             <div className="bg-blue-500 h-1 rounded-full" style={{ width: '70%' }}></div>
           </div>
@@ -26,19 +26,19 @@ export function DashboardView({ businessId }: { businessId: string }) {
         
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <p className="text-[10px] text-slate-500 uppercase font-bold">Leads Encontrados</p>
-          <p className="text-2xl font-bold">{MOckMetrics.leadsFound}</p>
+          <p className="text-2xl font-bold">{MockMetrics.leadsFound}</p>
           <p className="text-[10px] text-emerald-600 font-medium mt-1">+12% vs sem. pasada</p>
         </div>
         
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <p className="text-[10px] text-slate-500 uppercase font-bold">Tasa De Respuesta</p>
-          <p className="text-2xl font-bold">{MOckMetrics.replyRate}</p>
+          <p className="text-2xl font-bold">{MockMetrics.replyRate}</p>
           <p className="text-[10px] text-slate-400 mt-1">Objetivo: 15.0%</p>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <p className="text-[10px] text-slate-500 uppercase font-bold">Reuniones Agendadas</p>
-          <p className="text-2xl font-bold">{MOckMetrics.meetingsBooked}</p>
+          <p className="text-2xl font-bold">{MockMetrics.meetingsBooked}</p>
           <p className="text-[10px] text-blue-600 font-medium mt-1">2 ptentes. confirmación</p>
         </div>
       </div>

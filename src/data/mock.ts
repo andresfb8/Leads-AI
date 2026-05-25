@@ -9,7 +9,14 @@ export const MOCK_BUSINESSES: Business[] = [
   { id: 'b_2', name: 'Dev Agency', role: 'Partner' },
 ];
 
-export type LeadStatus = 'Nuevo' | 'Enriquecido' | 'Contactado' | 'Respondido' | 'Reunión Agendada' | 'Suscripción Cancelada' | 'Rechazado';
+export type LeadStatus =
+  | 'Nuevo'
+  | 'Enriquecido'
+  | 'Contactado'
+  | 'Respondido'
+  | 'Reunión Agendada'
+  | 'Suscripción Cancelada'
+  | 'Rechazado';
 
 export interface Lead {
   id: string;
@@ -36,7 +43,18 @@ export interface OutreachDraft {
   suggestedAt: string;
 }
 
-export const MOckMetrics = {
+export interface InboxMessage {
+  id: string;
+  leadId: string;
+  from: string;
+  subject: string;
+  snippet: string;
+  date: string;
+  classification: string;
+  isRead: boolean;
+}
+
+export const MockMetrics = {
   timeSaved: '12h',
   leadsFound: 145,
   replyRate: '12.4%',
@@ -129,10 +147,10 @@ export const MOCK_DRAFTS: OutreachDraft[] = [
     body: `Hi Elena,\n\nSaw your recent post about the challenges of scaling customer success. Decreasing churn clearly seems to be top of mind for SaaSify right now.\n\nI run an AI SDR tool that helps you reach exactly the customers who are showing high intent, so your team focuses on closing rather than cold calling.\n\nWould you be open to exploring how this could work for your team?\n\nBest,\nAndres`,
     status: 'Borrador',
     suggestedAt: new Date(Date.now() - 3600000).toISOString(),
-  }
+  },
 ];
 
-export const MOCK_INBOX = [
+export const MOCK_INBOX: InboxMessage[] = [
   {
     id: 'i_1',
     leadId: 'l_4',
@@ -152,5 +170,5 @@ export const MOCK_INBOX = [
     date: new Date(Date.now() - 86400000).toISOString(),
     classification: 'Objeción/Baja',
     isRead: true,
-  }
-]
+  },
+];

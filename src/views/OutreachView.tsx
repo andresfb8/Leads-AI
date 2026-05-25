@@ -1,18 +1,58 @@
 import React, { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/src/components/ui/Card';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardDescription,
+  CardFooter,
+} from '@/src/components/ui/Card';
 import { Button } from '@/src/components/ui/Button';
 import { Textarea } from '@/src/components/ui/Textarea';
 import { Input } from '@/src/components/ui/Input';
 import { MOCK_DRAFTS, MOCK_LEADS, OutreachDraft } from '@/src/data/mock';
 import { Badge } from '@/src/components/ui/Badge';
-import { Sparkles, Send, Edit2, RotateCcw, Check, UserIcon } from 'lucide-react';
+import { Sparkles, RotateCcw, Check } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { rewriteEmail } from '@/src/lib/gemini';
+
+interface DraftEdit {
+  subject: string;
+  body: string;
+}
 
 export function OutreachView({ businessId }: { businessId: string }) {
   const [drafts, setDrafts] = useState(MOCK_DRAFTS);
+  const [draftEdits, setDraftEdits] = useState<Record<string, DraftEdit>>(() =>
+    Object.fromEntries(MOCK_DRAFTS.map(d => [d.id, { subject: d.subject, body: d.body }]))
+  );
+  const [rewritingIds, setRewritingIds] = useState<Set<string>>(new Set());
 
   const handleApprove = (id: string) => {
-    setDrafts(drafts.map(d => d.id === id ? { ...d, status: 'Aprobado' } : d));
+    setDrafts(drafts.map(d => (d.id === id ? { ...d, status: 'Aprobado' } : d)));
+  };
+
+  const handleRewrite = async (draft: OutreachDraft) => {
+    const lead = MOCK_LEADS.find(l => l.id === draft.leadId);
+    if (!lead) return;
+
+    setRewritingIds(prev => new Set(prev).add(draft.id));
+    try {
+      const current = draftEdits[draft.id] ?? { subject: draft.subject, body: draft.body };
+      const result = await rewriteEmail(lead, current);
+      setDraftEdits(prev => ({ ...prev, [draft.id]: result }));
+    } finally {
+      setRewritingIds(prev => {
+        const next = new Set(prev);
+        next.delete(draft.id);
+        return next;
+      });
+    }
+  };
+
+  const handleRewriteAll = async () => {
+    const pending = drafts.filter(d => d.status === 'Borrador');
+    await Promise.all(pending.map(handleRewrite));
   };
 
   const pendingDrafts = drafts.filter(d => d.status === 'Borrador');
@@ -22,10 +62,19 @@ export function OutreachView({ businessId }: { businessId: string }) {
       <div className="flex justify-between items-center shrink-0">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Alcance y Aprobaciones</h2>
-          <p className="text-xs text-slate-500 mt-1">Revisión humana. Aprueba o modifica borradores de IA antes de enviar.</p>
+          <p className="text-xs text-slate-500 mt-1">
+            Revisión humana. Aprueba o modifica borradores de IA antes de enviar.
+          </p>
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline"><RotateCcw className="mr-2 h-3.5 w-3.5" /> Regenerar Todo</Button>
+          <Button
+            variant="outline"
+            onClick={handleRewriteAll}
+            isLoading={rewritingIds.size > 0}
+            disabled={pendingDrafts.length === 0}
+          >
+            <RotateCcw className="mr-2 h-3.5 w-3.5" /> Regenerar Todo
+          </Button>
         </div>
       </div>
 
@@ -43,6 +92,8 @@ export function OutreachView({ businessId }: { businessId: string }) {
           {pendingDrafts.map(draft => {
             const lead = MOCK_LEADS.find(l => l.id === draft.leadId);
             if (!lead) return null;
+            const edit = draftEdits[draft.id] ?? { subject: draft.subject, body: draft.body };
+            const isRewriting = rewritingIds.has(draft.id);
 
             return (
               <Card key={draft.id} className="overflow-hidden">
@@ -52,58 +103,87 @@ export function OutreachView({ businessId }: { businessId: string }) {
                       <Sparkles size={16} />
                     </div>
                     <div>
-                      <span className="text-sm font-medium">Borrador de IA para {lead.name}</span>
-                      <span className="text-xs text-slate-500 ml-2">({lead.company} - {lead.title})</span>
+                      <span className="text-sm font-medium">
+                        Borrador de IA para {lead.name}
+                      </span>
+                      <span className="text-xs text-slate-500 ml-2">
+                        ({lead.company} - {lead.title})
+                      </span>
                     </div>
                   </div>
                   <span className="text-xs text-slate-400">
                     Sugerido hace {formatDistanceToNow(new Date(draft.suggestedAt))}
                   </span>
                 </div>
-                
+
                 <CardContent className="p-6 space-y-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-500 uppercase">Asunto</label>
-                    <Input defaultValue={draft.subject} className="font-medium" />
-                  </div>
-                  
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-500 uppercase flex justify-between">
-                      <span>Cuerpo del Mensaje</span>
-                      <span className="text-indigo-600 font-normal normal-case flex items-center">
-                        <Edit2 size={12} className="mr-1" /> Clic para editar
-                      </span>
+                    <label className="text-xs font-semibold text-slate-500 uppercase">
+                      Asunto
                     </label>
-                    <Textarea 
-                      defaultValue={draft.body} 
-                      className="min-h-[160px] font-sans leading-relaxed resize-y"
+                    <Input
+                      value={edit.subject}
+                      onChange={e =>
+                        setDraftEdits(prev => ({
+                          ...prev,
+                          [draft.id]: { ...prev[draft.id], subject: e.target.value },
+                        }))
+                      }
+                      className="font-medium"
+                      disabled={isRewriting}
                     />
                   </div>
-                  
-                  <div className="bg-amber-50 border border-amber-100 rounded-md p-3 flex space-x-3 text-sm text-amber-800">
-                    <div>
-                      <strong>¿Por qué este mensaje?</strong> La IA detectó que están contratando activamente ingenieros. El enfoque está en el ahorro de tiempo para onboardings.
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-500 uppercase">
+                      Cuerpo del Mensaje
+                    </label>
+                    <Textarea
+                      value={edit.body}
+                      onChange={e =>
+                        setDraftEdits(prev => ({
+                          ...prev,
+                          [draft.id]: { ...prev[draft.id], body: e.target.value },
+                        }))
+                      }
+                      className="min-h-[160px] font-sans leading-relaxed resize-y"
+                      disabled={isRewriting}
+                    />
+                  </div>
+
+                  {lead.painPoint && lead.painPoint !== 'N/A' && (
+                    <div className="bg-amber-50 border border-amber-100 rounded-md p-3 text-sm text-amber-800">
+                      <strong>¿Por qué este mensaje?</strong> Pain point detectado:{' '}
+                      <em>{lead.painPoint}</em>. El mensaje está orientado a abordar este problema
+                      directamente.
                     </div>
-                  </div>
+                  )}
                 </CardContent>
-                
+
                 <CardFooter className="bg-slate-50 px-6 py-3 border-t border-slate-100 flex justify-between">
-                  <Button variant="ghost" className="text-slate-500"><RotateCcw className="mr-2 h-4 w-4" /> Reescribir</Button>
-                  <div className="space-x-2">
-                    <Button 
-                      onClick={() => handleApprove(draft.id)}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                    >
-                      <Check className="mr-2 h-4 w-4" /> Aprobar y Programar
-                    </Button>
-                  </div>
+                  <Button
+                    variant="ghost"
+                    className="text-slate-500"
+                    onClick={() => handleRewrite(draft)}
+                    isLoading={isRewriting}
+                    disabled={isRewriting}
+                  >
+                    <RotateCcw className="mr-2 h-4 w-4" /> Reescribir con IA
+                  </Button>
+                  <Button
+                    onClick={() => handleApprove(draft.id)}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    disabled={isRewriting}
+                  >
+                    <Check className="mr-2 h-4 w-4" /> Aprobar y Programar
+                  </Button>
                 </CardFooter>
               </Card>
             );
           })}
         </div>
 
-        {/* Lead Context Panel */}
+        {/* Sequence Panel */}
         <div className="space-y-4">
           <Card className="sticky top-6">
             <CardHeader>
@@ -118,7 +198,7 @@ export function OutreachView({ businessId }: { businessId: string }) {
               <div className="w-full bg-slate-100 rounded-full h-2">
                 <div className="bg-indigo-600 h-2 rounded-full" style={{ width: '90%' }}></div>
               </div>
-              
+
               <div className="pt-4 mt-2 border-t border-slate-100">
                 <h4 className="text-sm font-semibold mb-2">Secuencias Activas</h4>
                 <div className="space-y-2">
