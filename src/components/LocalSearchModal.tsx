@@ -8,9 +8,10 @@ interface LocalSearchModalProps {
   onClose: () => void;
   onSearch: (keyword: string, location: string) => void;
   isSearching: boolean;
+  error?: string | null;
 }
 
-export function LocalSearchModal({ onClose, onSearch, isSearching }: LocalSearchModalProps) {
+export function LocalSearchModal({ onClose, onSearch, isSearching, error }: LocalSearchModalProps) {
   const [keyword, setKeyword] = useState('Club de Padel');
   const [location, setLocation] = useState('Madrid, España');
 
@@ -24,10 +25,10 @@ export function LocalSearchModal({ onClose, onSearch, isSearching }: LocalSearch
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900">Búsqueda Local</h2>
-              <p className="text-xs text-slate-500">Extrae negocios desde Google Maps</p>
+              <p className="text-xs text-slate-500">Extrae negocios reales desde Google Maps</p>
             </div>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
           >
@@ -35,17 +36,19 @@ export function LocalSearchModal({ onClose, onSearch, isSearching }: LocalSearch
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
-          <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4 text-sm text-indigo-800">
-            <strong>Nota de Integración:</strong> Esta función requiere una <code className="bg-indigo-100 px-1 rounded">VITE_GOOGLE_MAPS_API_KEY</code> configurada en tu archivo <code>.env</code> para funcionar con datos reales de la API de Google Places.
-          </div>
+        <div className="p-6 space-y-4">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded-lg">
+              {error}
+            </div>
+          )}
 
           <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700 block">Tipo de Negocio o Palabra Clave</label>
               <div className="relative">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                <Input 
+                <Input
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
                   placeholder="Ej. Club de Padel, Dentista, Gimnasio..."
@@ -58,7 +61,7 @@ export function LocalSearchModal({ onClose, onSearch, isSearching }: LocalSearch
               <label className="text-sm font-semibold text-slate-700 block">Ubicación</label>
               <div className="relative">
                 <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                <Input 
+                <Input
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   placeholder="Ciudad, barrio o código postal"
@@ -67,18 +70,22 @@ export function LocalSearchModal({ onClose, onSearch, isSearching }: LocalSearch
               </div>
             </div>
           </div>
+
+          <p className="text-xs text-slate-400">
+            Obtiene hasta 60 resultados paginados de Google Places.
+          </p>
         </div>
 
         <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end space-x-3">
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button 
-            onClick={() => onSearch(keyword, location)} 
+          <Button
+            onClick={() => onSearch(keyword, location)}
             disabled={isSearching || !keyword || !location}
           >
             {isSearching ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Buscando...
+                Buscando en Maps...
               </>
             ) : (
               <>

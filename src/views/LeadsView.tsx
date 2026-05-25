@@ -16,6 +16,7 @@ import { Search, Plus, Filter, Download } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { LocalSearchModal } from '@/src/components/LocalSearchModal';
 import { useAppContext } from '@/src/context/AppContext';
+import { searchPlaces } from '@/src/services/placesService';
 
 const ALL_STATUSES: LeadStatus[] = [
   'Nuevo',
@@ -63,41 +64,24 @@ export function LeadsView({ businessId }: { businessId: string }) {
     setEditingStatusId(null);
   };
 
-  const handleLocalSearch = (keyword: string, location: string) => {
+  const [searchError, setSearchError] = useState<string | null>(null);
+
+  const handleLocalSearch = async (keyword: string, location: string) => {
     setIsSearching(true);
-    setTimeout(() => {
-      const newLeads: Lead[] = [
-        {
-          id: `l_${Date.now()}_1`,
-          name: 'Gerente / Recepción',
-          title: 'General',
-          company: `${keyword} Los Olivos`,
-          linkedin: `Maps: ${location}`,
-          email: 'contacto@ejemplo.com',
-          fitScore: 85,
-          intentScore: 40,
-          status: 'Nuevo',
-          painPoint: 'Gestión manual de reservas',
-          lastAction: 'Extraído de Google Maps',
-        },
-        {
-          id: `l_${Date.now()}_2`,
-          name: 'Propietario',
-          title: 'Owner',
-          company: `${keyword} ${location.split(',')[0]} Center`,
-          linkedin: `Maps: ${location}`,
-          email: 'admin@ejemplo.com',
-          fitScore: 92,
-          intentScore: 60,
-          status: 'Nuevo',
-          painPoint: 'Baja asistencia en mañanas',
-          lastAction: 'Extraído de Google Maps',
-        },
-      ];
-      addLeads(businessId, newLeads);
+    setSearchError(null);
+    try {
+      const newLeads = await searchPlaces(keyword, location, 60);
+      if (newLeads.length === 0) {
+        setSearchError('No se encontraron negocios para esa búsqueda. Prueba con otros términos.');
+      } else {
+        addLeads(businessId, newLeads);
+        setIsModalOpen(false);
+      }
+    } catch (err: unknown) {
+      setSearchError(err instanceof Error ? err.message : 'Error al buscar en Google Maps');
+    } finally {
       setIsSearching(false);
-      setIsModalOpen(false);
-    }, 2000);
+    }
   };
 
   const statusCounts = ALL_STATUSES.reduce<Record<string, number>>((acc, s) => {
@@ -269,9 +253,10 @@ export function LeadsView({ businessId }: { businessId: string }) {
 
       {isModalOpen && (
         <LocalSearchModal
-          onClose={() => setIsModalOpen(false)}
+          onClose={() => { setIsModalOpen(false); setSearchError(null); }}
           onSearch={handleLocalSearch}
           isSearching={isSearching}
+          error={searchError}
         />
       )}
     </div>
