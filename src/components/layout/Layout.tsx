@@ -13,7 +13,7 @@ import {
 import { cn } from '@/src/lib/utils';
 import { Business } from '@/src/data/mock';
 import { useAuthContext } from '@/src/context/AuthContext';
-import { isSupabaseConfigured } from '@/src/lib/supabase';
+import { isFirebaseConfigured } from '@/src/lib/firebase';
 
 interface LayoutProps {
   children: React.ReactNode;

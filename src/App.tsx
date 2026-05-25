@@ -10,11 +10,11 @@ import { SettingsView } from './views/SettingsView';
 import { LoginView } from './views/LoginView';
 import { AppProvider, useAppContext } from './context/AppContext';
 import { AuthProvider, useAuthContext } from './context/AuthContext';
-import { isSupabaseConfigured } from './lib/supabase';
+import { isFirebaseConfigured } from './lib/firebase';
 
 function AppShell() {
   const { user, isDemoMode, isLoading, businesses } = useAuthContext();
-  const { syncBusinessFromSupabase } = useAppContext();
+  const { syncBusinessFromFirebase: syncBusiness } = useAppContext();
 
   const isAuthenticated = isDemoMode || Boolean(user);
   const defaultBusinessId = businesses[0]?.id ?? 'b_1';
@@ -29,10 +29,10 @@ function AppShell() {
     }
   }, [businesses]);
 
-  // When business changes and Supabase is configured, load its data
+  // When business changes and Firebase is configured, load its data
   useEffect(() => {
-    if (isSupabaseConfigured && user) {
-      syncBusinessFromSupabase(activeBusinessId);
+    if (isFirebaseConfigured && user) {
+      syncBusiness(activeBusinessId);
     }
   }, [activeBusinessId, user]);
 

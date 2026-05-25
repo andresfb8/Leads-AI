@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/src/components/ui/Button';
 import { Input } from '@/src/components/ui/Input';
 import { useAuthContext } from '@/src/context/AuthContext';
-import { isSupabaseConfigured } from '@/src/lib/supabase';
+import { isFirebaseConfigured } from '@/src/lib/firebase';
 
 type Mode = 'login' | 'signup';
 
@@ -81,11 +81,11 @@ export function LoginView() {
 
         {/* Right panel — form */}
         <div className="p-10 flex flex-col justify-center">
-          {/* Demo mode button — shown prominently when no Supabase */}
-          {!isSupabaseConfigured && (
+          {/* Demo mode button — shown prominently when no Firebase */}
+          {!isFirebaseConfigured && (
             <div className="mb-8">
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 text-sm text-amber-800">
-                <strong>Modo Demo:</strong> Supabase no está configurado. Los datos se guardan
+                <strong>Modo Demo:</strong> Firebase no está configurado. Los datos se guardan
                 localmente en tu navegador.
               </div>
               <Button
@@ -114,11 +114,10 @@ export function LoginView() {
               : 'Empieza a prospectar con IA hoy.'}
           </p>
 
-          {!isSupabaseConfigured ? (
+          {!isFirebaseConfigured ? (
             <p className="text-xs text-slate-400 text-center">
-              Configura <code className="bg-slate-100 px-1 rounded">VITE_SUPABASE_URL</code> y{' '}
-              <code className="bg-slate-100 px-1 rounded">VITE_SUPABASE_ANON_KEY</code> en tu{' '}
-              <code>.env</code> para activar la autenticación real.
+              Configura las variables <code className="bg-slate-100 px-1 rounded">VITE_FIREBASE_*</code> en tu{' '}
+              <code>.env</code> para activar la autenticación real con Firebase.
             </p>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">

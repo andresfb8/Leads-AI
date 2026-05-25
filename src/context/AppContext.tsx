@@ -9,7 +9,7 @@ import {
   MOCK_DRAFTS,
   MOCK_INBOX,
 } from '@/src/data/mock';
-import { isSupabaseConfigured } from '@/src/lib/supabase';
+import { isFirebaseConfigured } from '@/src/lib/firebase';
 import {
   leadsService,
   draftsService,
@@ -45,15 +45,15 @@ interface AppContextValue {
   rejectDraft: (businessId: string, draftId: string) => void;
   updateInboxClassification: (businessId: string, msgId: string, classification: string) => void;
   markInboxRead: (businessId: string, msgId: string) => void;
-  syncBusinessFromSupabase: (businessId: string) => Promise<void>;
+  syncBusinessFromFirebase: (businessId: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
 
-// Wrapper to fire-and-forget Supabase sync without crashing the UI
+// Wrapper to fire-and-forget Firebase sync without crashing the UI
 function syncSilently(fn: () => Promise<void>) {
-  if (!isSupabaseConfigured) return;
-  fn().catch(err => console.error('[Supabase sync]', err));
+  if (!isFirebaseConfigured) return;
+  fn().catch(err => console.error('[Firebase sync]', err));
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -74,10 +74,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [data]
   );
 
-  // Load a business's data from Supabase and hydrate localStorage
-  const syncBusinessFromSupabase = useCallback(
+  // Load a business's data from Firebase and hydrate localStorage
+  const syncBusinessFromFirebase = useCallback(
     async (businessId: string) => {
-      if (!isSupabaseConfigured) return;
+      if (!isFirebaseConfigured) return;
       try {
         const biz = await loadBusinessData(businessId);
         setData(prev => ({
@@ -85,7 +85,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           [businessId]: biz,
         }));
       } catch (err) {
-        console.error('[Supabase load]', err);
+        console.error('[Firebase load]', err);
       }
     },
     [setData]
@@ -227,7 +227,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         rejectDraft,
         updateInboxClassification,
         markInboxRead,
-        syncBusinessFromSupabase,
+        syncBusinessFromFirebase,
       }}
     >
       {children}
