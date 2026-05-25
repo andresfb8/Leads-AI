@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback } from 'react';
+import React, { createContext, useContext, useCallback, useEffect } from 'react';
 import { useLocalStorage } from '@/src/hooks/useLocalStorage';
 import {
   Lead,
@@ -9,6 +9,13 @@ import {
   MOCK_DRAFTS,
   MOCK_INBOX,
 } from '@/src/data/mock';
+import { isSupabaseConfigured } from '@/src/lib/supabase';
+import {
+  leadsService,
+  draftsService,
+  inboxService,
+  loadBusinessData,
+} from '@/src/services/dataService';
 
 interface BusinessData {
   leads: Lead[];
@@ -38,9 +45,16 @@ interface AppContextValue {
   rejectDraft: (businessId: string, draftId: string) => void;
   updateInboxClassification: (businessId: string, msgId: string, classification: string) => void;
   markInboxRead: (businessId: string, msgId: string) => void;
+  syncBusinessFromSupabase: (businessId: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
+
+// Wrapper to fire-and-forget Supabase sync without crashing the UI
+function syncSilently(fn: () => Promise<void>) {
+  if (!isSupabaseConfigured) return;
+  fn().catch(err => console.error('[Supabase sync]', err));
+}
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useLocalStorage<AppData>('leads_ai_app_state', INITIAL_DATA);
@@ -60,6 +74,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [data]
   );
 
+  // Load a business's data from Supabase and hydrate localStorage
+  const syncBusinessFromSupabase = useCallback(
+    async (businessId: string) => {
+      if (!isSupabaseConfigured) return;
+      try {
+        const biz = await loadBusinessData(businessId);
+        setData(prev => ({
+          ...prev,
+          [businessId]: biz,
+        }));
+      } catch (err) {
+        console.error('[Supabase load]', err);
+      }
+    },
+    [setData]
+  );
+
   const addLeads = useCallback(
     (businessId: string, newLeads: Lead[]) => {
       setData(prev => {
@@ -72,6 +103,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           },
         };
       });
+      syncSilently(() => leadsService.upsertMany(businessId, newLeads));
     },
     [setData]
   );
@@ -92,6 +124,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           },
         };
       });
+      syncSilently(() => leadsService.updateStatus(leadId, status, lastAction));
     },
     [setData]
   );
@@ -103,26 +136,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const draft = safe[businessId].drafts.find(d => d.id === draftId);
         const leadId = draft?.leadId;
 
-        const updatedDrafts = safe[businessId].drafts.map(d =>
-          d.id === draftId ? { ...d, subject, body, status: 'Aprobado' as const } : d
-        );
-
-        const updatedLeads = leadId
-          ? safe[businessId].leads.map(l =>
-              l.id === leadId
-                ? { ...l, status: 'Contactado' as LeadStatus, lastAction: 'Email aprobado y programado' }
-                : l
-            )
-          : safe[businessId].leads;
-
         return {
           ...safe,
           [businessId]: {
             ...safe[businessId],
-            drafts: updatedDrafts,
-            leads: updatedLeads,
+            drafts: safe[businessId].drafts.map(d =>
+              d.id === draftId ? { ...d, subject, body, status: 'Aprobado' as const } : d
+            ),
+            leads: leadId
+              ? safe[businessId].leads.map(l =>
+                  l.id === leadId
+                    ? { ...l, status: 'Contactado' as LeadStatus, lastAction: 'Email aprobado y programado' }
+                    : l
+                )
+              : safe[businessId].leads,
           },
         };
+      });
+      syncSilently(async () => {
+        await draftsService.approve(draftId, subject, body);
       });
     },
     [setData]
@@ -140,6 +172,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           },
         };
       });
+      syncSilently(() => draftsService.delete(draftId));
     },
     [setData]
   );
@@ -158,6 +191,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           },
         };
       });
+      syncSilently(() => inboxService.updateClassification(msgId, classification));
     },
     [setData]
   );
@@ -176,6 +210,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           },
         };
       });
+      syncSilently(() => inboxService.markRead(msgId));
     },
     [setData]
   );
@@ -192,6 +227,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         rejectDraft,
         updateInboxClassification,
         markInboxRead,
+        syncBusinessFromSupabase,
       }}
     >
       {children}
