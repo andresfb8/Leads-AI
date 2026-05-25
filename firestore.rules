@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: check if current user owns the document
+    function owns() {
+      return request.auth != null && request.auth.uid == resource.data.userId;
+    }
+
+    // Helper: check userId on new documents
+    function creating() {
+      return request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+
+    // Businesses
+    match /businesses/{businessId} {
+      allow read, update, delete: if owns();
+      allow create: if creating();
+    }
+
+    // Knowledge configs (document ID == businessId)
+    match /knowledge_configs/{businessId} {
+      allow read, update, delete: if owns();
+      allow create: if creating();
+    }
+
+    // Leads
+    match /leads/{leadId} {
+      allow read, update, delete: if owns();
+      allow create: if creating();
+    }
+
+    // Outreach drafts
+    match /outreach_drafts/{draftId} {
+      allow read, update, delete: if owns();
+      allow create: if creating();
+    }
+
+    // Inbox messages
+    match /inbox_messages/{msgId} {
+      allow read, update, delete: if owns();
+      allow create: if creating();
+    }
+  }
+}
