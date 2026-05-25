@@ -7,23 +7,32 @@ import {
   CardDescription,
 } from '@/src/components/ui/Card';
 import { Button } from '@/src/components/ui/Button';
-import { MOCK_INBOX, MOCK_LEADS, InboxMessage } from '@/src/data/mock';
+import { InboxMessage } from '@/src/data/mock';
 import { Badge } from '@/src/components/ui/Badge';
 import { Calendar, Clock, Inbox as InboxIcon, MapPin, Sparkles } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { classifyInboxMessage, InboxClassification } from '@/src/lib/gemini';
+import { classifyInboxMessage } from '@/src/lib/gemini';
+import { useAppContext } from '@/src/context/AppContext';
+
+function getClassificationVariant(c: string) {
+  if (c === 'Interesado') return 'success' as const;
+  if (c === 'Objeción/Baja') return 'destructive' as const;
+  if (c === 'No Interesado') return 'warning' as const;
+  return 'default' as const;
+}
 
 export function InboxView({ businessId }: { businessId: string }) {
-  const [messages, setMessages] = useState<InboxMessage[]>(MOCK_INBOX);
+  const { getInbox, getLeads, updateInboxClassification, markInboxRead } = useAppContext();
+  const messages = getInbox(businessId);
+  const leads = getLeads(businessId);
+
   const [classifyingIds, setClassifyingIds] = useState<Set<string>>(new Set());
 
   const handleClassify = async (msg: InboxMessage) => {
     setClassifyingIds(prev => new Set(prev).add(msg.id));
     try {
       const classification = await classifyInboxMessage(msg.snippet);
-      setMessages(prev =>
-        prev.map(m => (m.id === msg.id ? { ...m, classification, isRead: true } : m))
-      );
+      updateInboxClassification(businessId, msg.id, classification);
     } finally {
       setClassifyingIds(prev => {
         const next = new Set(prev);
@@ -36,6 +45,8 @@ export function InboxView({ businessId }: { businessId: string }) {
   const handleClassifyAll = async () => {
     await Promise.all(messages.map(handleClassify));
   };
+
+  const unreadCount = messages.filter(m => !m.isRead).length;
 
   return (
     <div className="space-y-6">
@@ -56,84 +67,96 @@ export function InboxView({ businessId }: { businessId: string }) {
         <div className="lg:col-span-2 space-y-4">
           <Card>
             <CardHeader className="pb-3 border-b border-slate-100">
-              <CardTitle className="text-lg flex items-center">
-                <InboxIcon className="mr-2 h-5 w-5 text-indigo-500" /> Respuestas Recientes
+              <CardTitle className="text-lg flex items-center gap-2">
+                <InboxIcon className="h-5 w-5 text-indigo-500" />
+                Respuestas Recientes
+                {unreadCount > 0 && (
+                  <span className="ml-1 bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                    {unreadCount}
+                  </span>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="divide-y divide-slate-100">
-                {messages.map(msg => {
-                  const lead = MOCK_LEADS.find(l => l.id === msg.leadId);
-                  const isInterested = msg.classification === 'Interesado';
-                  const isClassifying = classifyingIds.has(msg.id);
+              {messages.length === 0 ? (
+                <div className="text-center py-12 text-slate-400 text-sm">
+                  No hay respuestas para este negocio.
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {messages.map(msg => {
+                    const lead = leads.find(l => l.id === msg.leadId);
+                    const isInterested = msg.classification === 'Interesado';
+                    const isClassifying = classifyingIds.has(msg.id);
 
-                  return (
-                    <div
-                      key={msg.id}
-                      className={`p-4 hover:bg-slate-50 transition-colors ${
-                        !msg.isRead ? 'bg-indigo-50/30' : ''
-                      }`}
-                    >
-                      <div className="flex justify-between items-start mb-1">
-                        <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                          <span
-                            className={`font-semibold ${
-                              !msg.isRead ? 'text-slate-900' : 'text-slate-700'
-                            }`}
-                          >
-                            {msg.from}
+                    return (
+                      <div
+                        key={msg.id}
+                        onClick={() => markInboxRead(businessId, msg.id)}
+                        className={`p-4 hover:bg-slate-50 transition-colors cursor-pointer ${
+                          !msg.isRead ? 'bg-indigo-50/30' : ''
+                        }`}
+                      >
+                        <div className="flex justify-between items-start mb-1">
+                          <div className="flex items-center flex-wrap gap-1.5">
+                            {!msg.isRead && (
+                              <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
+                            )}
+                            <span
+                              className={`font-semibold ${
+                                !msg.isRead ? 'text-slate-900' : 'text-slate-700'
+                              }`}
+                            >
+                              {msg.from}
+                            </span>
+                            {lead && (
+                              <span className="text-xs text-slate-500">({lead.company})</span>
+                            )}
+                            <Badge variant={getClassificationVariant(msg.classification)}>
+                              {msg.classification}
+                            </Badge>
+                          </div>
+                          <span className="text-xs text-slate-400 shrink-0 ml-2">
+                            hace {formatDistanceToNow(new Date(msg.date))}
                           </span>
-                          <span className="text-xs text-slate-500">({lead?.company})</span>
-                          <Badge
-                            variant={
-                              isInterested
-                                ? 'success'
-                                : msg.classification === 'Objeción/Baja'
-                                ? 'destructive'
-                                : 'default'
-                            }
-                            className="ml-2"
-                          >
-                            {msg.classification}
-                          </Badge>
                         </div>
-                        <span className="text-xs text-slate-400 shrink-0 ml-2">
-                          hace {formatDistanceToNow(new Date(msg.date))}
-                        </span>
-                      </div>
-                      <div className="text-sm font-medium mb-1">{msg.subject}</div>
-                      <div className="text-sm text-slate-600 mb-3">{msg.snippet}</div>
+                        <div className="text-sm font-medium mb-1">{msg.subject}</div>
+                        <div className="text-sm text-slate-600 mb-3">{msg.snippet}</div>
 
-                      <div className="flex space-x-2 flex-wrap gap-y-2">
-                        {isInterested ? (
-                          <>
-                            <Button size="sm" className="bg-indigo-600 text-white">
-                              <Calendar className="mr-2 h-3 w-3" /> Proponer Horarios
-                            </Button>
-                            <Button size="sm" variant="outline">
-                              Responder Manualmente
-                            </Button>
-                          </>
-                        ) : (
-                          <Button size="sm" variant="outline">
-                            Ignorar/Reconocer
-                          </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleClassify(msg)}
-                          isLoading={isClassifying}
-                          disabled={isClassifying}
-                          className="text-indigo-600"
+                        <div
+                          className="flex space-x-2 flex-wrap gap-y-2"
+                          onClick={e => e.stopPropagation()}
                         >
-                          <Sparkles className="mr-1 h-3 w-3" /> Reclasificar
-                        </Button>
+                          {isInterested ? (
+                            <>
+                              <Button size="sm" className="bg-indigo-600 text-white">
+                                <Calendar className="mr-2 h-3 w-3" /> Proponer Horarios
+                              </Button>
+                              <Button size="sm" variant="outline">
+                                Responder Manualmente
+                              </Button>
+                            </>
+                          ) : (
+                            <Button size="sm" variant="outline">
+                              Ignorar/Reconocer
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleClassify(msg)}
+                            isLoading={isClassifying}
+                            disabled={isClassifying}
+                            className="text-indigo-600"
+                          >
+                            <Sparkles className="mr-1 h-3 w-3" /> Reclasificar
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

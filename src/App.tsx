@@ -8,6 +8,7 @@ import { InboxView } from './views/InboxView';
 import { ComplianceView } from './views/ComplianceView';
 import { SettingsView } from './views/SettingsView';
 import { MOCK_BUSINESSES } from './data/mock';
+import { AppProvider } from './context/AppContext';
 
 export default function App() {
   const [activeView, setActiveView] = useState('dashboard');
@@ -35,13 +36,15 @@ export default function App() {
   };
 
   return (
-    <Layout 
-      activeView={activeView} 
-      setActiveView={setActiveView}
-      activeBusinessId={activeBusinessId}
-      setActiveBusinessId={setActiveBusinessId}
-    >
-      {renderView()}
-    </Layout>
+    <AppProvider>
+      <Layout
+        activeView={activeView}
+        setActiveView={setActiveView}
+        activeBusinessId={activeBusinessId}
+        setActiveBusinessId={setActiveBusinessId}
+      >
+        {renderView()}
+      </Layout>
+    </AppProvider>
   );
 }
