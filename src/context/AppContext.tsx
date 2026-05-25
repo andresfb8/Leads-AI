@@ -25,7 +25,10 @@ interface BusinessData {
 
 type AppData = Record<string, BusinessData>;
 
-const INITIAL_DATA: AppData = {
+const EMPTY_DATA: AppData = {};
+
+// Mock data only used in Demo Mode (no Firebase)
+const DEMO_DATA: AppData = {
   b_1: { leads: MOCK_LEADS, drafts: MOCK_DRAFTS, inbox: MOCK_INBOX },
   b_2: { leads: [], drafts: [], inbox: [] },
 };
@@ -56,8 +59,10 @@ function syncSilently(fn: () => Promise<void>) {
   fn().catch(err => console.error('[Firebase sync]', err));
 }
 
-export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [data, setData] = useLocalStorage<AppData>('leads_ai_app_state', INITIAL_DATA);
+export function AppProvider({ children, isDemoMode }: { children: React.ReactNode; isDemoMode?: boolean }) {
+  const storageKey = isDemoMode ? 'leads_ai_demo_state' : 'leads_ai_live_state';
+  const initialData = isDemoMode ? DEMO_DATA : EMPTY_DATA;
+  const [data, setData] = useLocalStorage<AppData>(storageKey, initialData);
 
   const getLeads = useCallback(
     (businessId: string) => data[businessId]?.leads ?? [],

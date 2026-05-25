@@ -74,12 +74,19 @@ function AppShell() {
   );
 }
 
+function AppWithAuth() {
+  const { isDemoMode } = useAuthContext();
+  return (
+    <AppProvider isDemoMode={isDemoMode}>
+      <AppShell />
+    </AppProvider>
+  );
+}
+
 export default function App() {
   return (
     <AuthProvider>
-      <AppProvider>
-        <AppShell />
-      </AppProvider>
+      <AppWithAuth />
     </AuthProvider>
   );
 }
